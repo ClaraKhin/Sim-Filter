@@ -64,27 +64,44 @@ const sheetNames = workbook.SheetNames.filter(function (sheetName) {
   return sheetName !== 'Summary';
 });
 
+// Create objects to store rows for each format type
+const formatSheets = {
+  HotLine: [],
+  GSM: [],
+  CDMA: [],
+  Landline: []
+};
+
 sheetNames.forEach(function (sheetName) {
   const worksheet = workbook.Sheets[sheetName];
-  const jsonData = xlsx.utils.sheet_to_json(worksheet, { raw: true }); // Keep raw values for further processing
+  const jsonData = xlsx.utils.sheet_to_json(worksheet, { raw: true });
 
-  // Add a new 'SRC_Format' column and format the date values
+  // Process each row and categorize by format type
   jsonData.forEach(function (row) {
     // Format the SRC
-    row['SRC_Format'] = checkFormat(row.SRC);
+    const formatType = checkFormat(row.SRC);
+    row['SRC_Format'] = formatType;
 
     // Format row1 if it's a numeric Excel date
     if (typeof row['row1'] === 'number') {
       row['row1'] = formatExcelDate(row['row1']);
     }
-  });
-  
 
-  // Convert the JSON data back to a worksheet
-  const updatedWorksheet = xlsx.utils.json_to_sheet(jsonData);
-  workbook.Sheets[sheetName] = updatedWorksheet;
+    // Add the row to the corresponding format type sheet
+    if (formatSheets[formatType]) {
+      formatSheets[formatType].push(row);
+    }
+  });
 });
 
+// Create new sheets for each format type and add them to the workbook
+Object.keys(formatSheets).forEach(function (formatType) {
+  const sheetData = formatSheets[formatType];
+  const newWorksheet = xlsx.utils.json_to_sheet(sheetData);
+  workbook.Sheets[formatType] = newWorksheet; // Add the new sheet to the workbook
+});
+
+// Save the updated workbook
 xlsx.writeFile(workbook, outputFile);
 
-console.log(`Processed ${sheetNames.length} sheets and saved to ${outputFile}`);
+console.log(`Processed ${sheetNames.length} sheets and saved to ${outputFile} with separate sheets for each format type.`);
